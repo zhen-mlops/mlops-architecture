@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLOps Platform Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e1a;
+    color: #e0e4f0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: #7dd3fc;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .subtitle { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; }
+  .hint { text-align: center; color: #475569; font-size: 12px; margin-bottom: 32px; }
+  .hint span { background: rgba(125,211,252,0.1); border: 1px solid rgba(125,211,252,0.2); padding: 3px 10px; border-radius: 20px; color: #7dd3fc; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+
+  .main-layout { display: flex; gap: 20px; max-width: 1600px; margin: 0 auto; align-items: stretch; }
+
+  /* Sections */
+  .panel { border-radius: 14px; padding: 22px; position: relative; }
+  .panel-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+
+  .github-panel { flex: 0 0 270px; background: linear-gradient(165deg, #111827, #0f1629); border: 1px solid #1e293b; }
+  .github-panel .panel-label { color: #a78bfa; }
+
+  .mid-arrows { flex: 0 0 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 18px; }
+
+  .computer-panel { flex: 1; background: linear-gradient(165deg, #111827, #0d1320); border: 1px solid #1e293b; min-width: 0; }
+  .computer-panel .panel-label { color: #34d399; }
+
+  /* Clickable */
+  .clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+  .clickable:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+
+  .info-badge {
+    position: absolute; top: 6px; right: 6px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: rgba(255,255,255,0.35);
+    transition: all 0.15s; z-index: 2;
+  }
+  .clickable:hover .info-badge { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); }
+  .clickable.active .info-badge { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+
+  .tip {
+    display: none; margin-top: 8px; padding: 11px 13px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    font-size: 12.5px; line-height: 1.65; color: #cbd5e1;
+    animation: tipIn 0.2s ease-out;
+  }
+  .tip.show { display: block; }
+  .tip strong { color: #f1f5f9; }
+  .tip code { color: #7dd3fc; background: rgba(125,211,252,0.1); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  @keyframes tipIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+  /* Components */
+  .box { border-radius: 10px; padding: 13px 16px; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+  .box-sub { font-size: 11px; font-weight: 400; opacity: 0.6; margin-top: 2px; }
+
+  .repo-box { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+  .file-box { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2); color: #93c5fd; }
+  .actions-box { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2); color: #fcd34d; margin-top: 12px; }
+
+  .docker-wrap { background: rgba(56,189,248,0.05); border: 1px dashed rgba(56,189,248,0.2); border-radius: 8px; padding: 9px; margin-top: 8px; }
+  .docker-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+  .exec-opt { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 5px; padding: 6px 10px; font-size: 11px; color: #94a3b8; margin-bottom: 3px; }
+  .or-div { text-align: center; font-size: 10px; color: #475569; font-family: 'JetBrains Mono', monospace; margin: 2px 0; }
+
+  /* Infra */
+  .infra { margin-bottom: 16px; }
+  .layer {
+    padding: 8px 12px; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; border-radius: 4px; transition: background 0.15s;
+  }
+  .layer:hover { background: rgba(255,255,255,0.03); }
+  .ldot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .l-hw { color: #64748b; } .l-hw .ldot { background: #64748b; }
+  .l-vm { color: #78716c; } .l-vm .ldot { background: #78716c; }
+  .l-os { color: #a1a1aa; } .l-os .ldot { background: #a1a1aa; }
+  .l-docker { color: #38bdf8; } .l-docker .ldot { background: #38bdf8; }
+  .l-k8s { color: #818cf8; } .l-k8s .ldot { background: #818cf8; }
+  .l-click { font-size: 9px; opacity: 0.3; margin-left: auto; }
+
+  /* === Execution Layer === */
+  .exec-layer {
+    background: rgba(52,211,153,0.04);
+    border: 1px solid rgba(52,211,153,0.12);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .exec-layer-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: #34d399;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+    white-space: nowrap;
+  }
+  .exec-cards { display: flex; gap: 10px; flex: 1; }
+  .exec-card {
+    flex: 1; border-radius: 8px; padding: 12px; text-align: center;
+    font-weight: 600; font-size: 13px;
+  }
+  .exec-card-sub { font-size: 10px; font-weight: 400; opacity: 0.6; margin-top: 3px; }
+  .jupyter-card { background: rgba(251,146,60,0.08); border: 1px solid rgba(251,146,60,0.2); color: #fb923c; }
+  .python-card { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); color: #34d399; }
+  .exec-or { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #475569; align-self: center; flex-shrink: 0; }
+
+  /* arrow between exec and platform */
+  .internal-arrow {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 8px 0; padding: 4px 0;
+  }
+  .iarrow { color: #334155; font-size: 14px; }
+  .iarrow-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 2px 8px; border-radius: 4px;
+  }
+
+  /* Platform */
+  .platform {
+    background: rgba(52,211,153,0.04);
+    border: 1px solid rgba(52,211,153,0.15);
+    border-radius: 12px;
+    padding: 18px;
+    min-width: 0;
+  }
+  .platform-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #34d399; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; }
+
+  /* Platform components in a flow layout */
+  .platform-flow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+
+  .pcomp {
+    border-radius: 10px;
+    padding: 20px 16px 16px;
+    text-align: center;
+    min-width: 0;
+    flex: 1 1 140px;
+    position: relative;
+  }
+  .pcomp .pname { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .pcomp .prole { font-size: 9px; font-weight: 400; opacity: 0.55; text-transform: uppercase; letter-spacing: 1px; }
+
+  .kubeflow { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.25); color: #fb923c; }
+  .mlflow { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.25); color: #60a5fa; }
+  .kserve { background: rgba(244,114,182,0.1); border: 1px solid rgba(244,114,182,0.25); color: #f472b6; }
+
+  /* Pipeline steps inside Kubeflow */
+  .pipeline-steps {
+    display: flex; align-items: center; gap: 2px;
+    margin-top: 10px; justify-content: center; flex-wrap: wrap; row-gap: 4px;
+  }
+  .pstep {
+    padding: 3px 5px; border-radius: 4px; font-size: 7px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.3);
+    white-space: nowrap;
+  }
+  .pedge { width: 8px; height: 1px; background: rgba(251,146,60,0.3); position: relative; }
+  .pedge::after { content: '▸'; position: absolute; right: -5px; top: -7px; color: rgba(251,146,60,0.4); font-size: 10px; }
+
+  /* Arrows between platform components */
+  .parrow {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 4px; flex: 0 0 auto;
+  }
+  .parrow-line { font-size: 18px; color: #334155; line-height: 1; }
+  .parrow-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px;
+    padding: 2px 6px; border-radius: 3px; white-space: nowrap; margin-top: 2px;
+  }
+  .parrow-store .parrow-label { background: rgba(96,165,250,0.1); color: #60a5fa; }
+  .parrow-store .parrow-line { color: #60a5fa; }
+  .parrow-deploy .parrow-label { background: rgba(244,114,182,0.1); color: #f472b6; }
+  .parrow-deploy .parrow-line { color: #f472b6; }
+
+  /* Deployed model output */
+  .deployed {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 14px;
+    background: rgba(244,114,182,0.06); border: 1px dashed rgba(244,114,182,0.2);
+    border-radius: 10px; flex: 0 0 auto; position: relative;
+  }
+  .deployed-icon {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: rgba(244,114,182,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+  .deployed-text { font-size: 12px; color: #f472b6; font-weight: 600; white-space: nowrap; }
+  .deployed-sub { font-size: 9px; color: #64748b; margin-top: 1px; white-space: nowrap; }
+
+  /* Data flow */
+  .flow-bar {
+    margin-top: 16px; padding: 14px;
+    background: rgba(255,255,255,0.02); border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .flow-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  .flow-row { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; }
+  .fstep { display: flex; align-items: center; gap: 6px; }
+  .fnum {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+  }
+  .ftxt { font-size: 11px; color: #cbd5e1; white-space: nowrap; }
+  .farr { color: #334155; font-size: 14px; margin: 0 6px; }
+  .f-purple .fnum { background: rgba(167,139,250,0.2); color: #a78bfa; }
+  .f-yellow .fnum { background: rgba(251,191,36,0.2); color: #fbbf24; }
+  .f-orange .fnum { background: rgba(251,146,60,0.2); color: #fb923c; }
+  .f-blue .fnum { background: rgba(96,165,250,0.2); color: #60a5fa; }
+  .f-pink .fnum { background: rgba(244,114,182,0.2); color: #f472b6; }
+
+  /* Tools */
+  .tools-area { margin-top: 12px; }
+  .tools-lbl { font-size: 10px; color: #475569; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .tools-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ttag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 4px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    color: #94a3b8; cursor: pointer; transition: background 0.15s; position: relative;
+  }
+  .ttag:hover { background: rgba(255,255,255,0.07); }
+  .ttag .tip { position: absolute; top: 100%; left: 0; min-width: 230px; z-index: 10; margin-top: 6px; }
+
+  /* Arrows middle column */
+  .conn { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .conn-arr { font-size: 22px; line-height: 1; }
+  .conn-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; padding: 2px 7px; border-radius: 4px; }
+  .conn-txt { font-size: 8px; color: #475569; text-align: center; max-width: 85px; line-height: 1.3; }
+  .c-define .conn-lbl { background: rgba(167,139,250,0.1); color: #a78bfa; }
+  .c-define .conn-arr { color: #a78bfa; }
+  .c-trigger .conn-lbl { background: rgba(251,191,36,0.1); color: #fbbf24; }
+  .c-trigger .conn-arr { color: #fbbf24; }
+  .c-create .conn-lbl { background: rgba(56,189,248,0.1); color: #38bdf8; }
+  .c-create .conn-arr { color: #38bdf8; }
+
+  /* Legend */
+  .legend {
+    max-width: 1600px; margin: 24px auto 0; padding: 14px 20px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
+  }
+  .legend-t { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 2px; }
+  .legend-i { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #64748b; }
+  .legend-d { width: 8px; height: 8px; border-radius: 3px; }
+
+  /* Animations */
+  @keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .panel { animation: fadeInUp 0.5s ease-out both; }
+  .github-panel { animation-delay: 0.1s; }
+  .computer-panel { animation-delay: 0.3s; }
+  @keyframes pulse { 0%,100% { opacity:0.5; } 50% { opacity:1; } }
+  .conn-arr { animation: pulse 2.5s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<h1>MLOps Platform Architecture</h1>
+<p class="subtitle">OSS MLOps Course &middot; GitHub + Local Infrastructure</p>
+<p class="hint"><span>Click any component</span> to see what it does</p>
+
+<div class="main-layout">
+
+  <!-- ===== GITHUB ===== -->
+  <div class="panel github-panel">
+    <div class="panel-label">&#9729; GitHub &middot; Cloud</div>
+
+    <div class="box repo-box clickable" onclick="toggle(this)">
+      <span class="info-badge">i</span>
+      &#128193; Your ML Repo
+      <div class="box-sub">Code repository</div>
+      <div class="tip">A GitHub repository holding <strong>all your ML project code</strong> — training scripts, data processing, configs, and CI/CD workflow definitions. Every change starts with a commit here.</div>
+    </div>
+
+    <div style="padding-left:12px;">
+      <div class="box file-box clickable" style="margin-bottom:6px;" onclick="toggle(this)">
+        <span class="info-badge">i</span>
+        <code>.github/workflows/</code>
+        <div class="box-sub">CI/CD pipeline definitions</div>
+        <div class="tip">YAML files that tell GitHub Actions <strong>what to do when you push code</strong>. Example: "on push to main, trigger my Kubeflow pipeline via the self-hosted runner."</div>
+      </div>
+      <div class="box file-box clickable" style="margin-bottom:6px;" onclick="toggle(this)">
+        <span class="info-badge">i</span>
+        <code>notebooks/</code>
+        <div class="box-sub">Jupyter Notebooks</div>
+        <div class="tip">Interactive <strong>.ipynb files</strong> for experimentation — data exploration, model prototyping, visualization. Can be executed automatically by GitHub Actions.</div>
+      </div>
+      <div class="box file-box clickable" onclick="toggle(this)">
+        <span class="info-badge">i</span>
+        <code>src/</code>
+        <div class="box-sub">Python source code</div>
+        <div class="tip">Production-ready <strong>Python modules</strong> — reusable functions for data loading, training, and evaluation. Clean importable code designed for automated pipelines.</div>
+      </div>
+    </div>
+
+    <div class="box actions-box clickable" onclick="toggle(this)">
+      <span class="info-badge">i</span>
+      &#9889; GitHub Actions
+      <div class="box-sub">CI/CD Pipeline Executor</div>
+      <div class="tip">GitHub's <strong>built-in automation engine</strong>. Reads your workflow YAML on push and runs the steps — connects to your self-hosted runner to trigger Kubeflow pipelines on your local machine.</div>
+      <div class="docker-wrap">
+        <div class="docker-label">&#128051; Docker Container</div>
+        <div class="exec-opt">&#9654; Run in Jupyter</div>
+        <div class="or-div">— OR —</div>
+        <div class="exec-opt">&#9654; Run with Python</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MIDDLE ARROWS ===== -->
+  <div class="mid-arrows">
+    <div class="conn c-define">
+      <div class="conn-lbl">define</div>
+      <div class="conn-arr">&rarr;</div>
+      <div class="conn-txt">Workflows define Actions behavior</div>
+    </div>
+    <div class="conn c-trigger">
+      <div class="conn-lbl">trigger</div>
+      <div class="conn-arr">&rarr;</div>
+      <div class="conn-txt">Actions trigger local pipelines</div>
+    </div>
+    <div class="conn c-create">
+      <div class="conn-lbl">create</div>
+      <div class="conn-arr">&larr;</div>
+      <div class="conn-txt">Notebooks pushed back to repo</div>
+    </div>
+  </div>
+
+  <!-- ===== COMPUTER ===== -->
+  <div class="panel computer-panel">
+    <div class="panel-label">&#128421; Computer 1 &middot; Your Physical Machine / VM @ CSC</div>
+
+    <!-- Infra stack -->
+    <div class="infra">
+      <div class="layer l-hw" onclick="toggle(this)">
+        <span class="ldot"></span> Hardware
+        <span class="l-click">click</span>
+        <div class="tip">Your <strong>physical CPU, RAM, disk</strong>. Everything runs on top of this — your own laptop/PC or a CSC virtual machine.</div>
+      </div>
+      <div class="layer l-vm" onclick="toggle(this)">
+        <span class="ldot"></span> Low-level Virtualization (if VM)
+        <span class="l-click">click</span>
+        <div class="tip">If using a <strong>CSC VM</strong>, this layer emulates a full computer in software (KVM/QEMU), giving you a dedicated machine on shared hardware.</div>
+      </div>
+      <div class="layer l-os" onclick="toggle(this)">
+        <span class="ldot"></span> Operating System
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Ubuntu Linux</strong> (or WSL on Windows). The base OS managing hardware and running Docker + all software on top.</div>
+      </div>
+      <div class="layer l-docker" onclick="toggle(this)">
+        <span class="ldot"></span> Docker — Containerization
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Packages each app into an isolated container</strong> with all dependencies. Lighter than a VM but provides similar isolation for Kubeflow, MLflow, etc.</div>
+      </div>
+      <div class="layer l-k8s" onclick="toggle(this)">
+        <span class="ldot"></span> KiND — Kubernetes in Docker
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Runs a full Kubernetes cluster inside Docker</strong> on your machine. Creates K8s "nodes" as containers — gives you a real K8s environment locally for all MLOps components.</div>
+      </div>
+    </div>
+
+    <!-- ===== EXECUTION LAYER (Jupyter / Python) ===== -->
+    <div class="exec-layer clickable" onclick="toggle(this)" style="cursor:pointer;">
+      <span class="info-badge">i</span>
+      <div class="exec-layer-label">Execution</div>
+      <div class="exec-cards">
+        <div class="exec-card jupyter-card">
+          &#128212; Jupyter
+          <div class="exec-card-sub">Run notebooks interactively or via Actions</div>
+        </div>
+        <div class="exec-or">OR</div>
+        <div class="exec-card python-card">
+          &#128013; Python
+          <div class="exec-card-sub">Run scripts directly or via Actions</div>
+        </div>
+      </div>
+      <div class="tip">The <strong>execution entry point</strong> between GitHub Actions and the MLOps platform. When Actions triggers a job on your self-hosted runner, it runs your code either as a Jupyter notebook or a Python script. You can also run these manually on your local machine. Either way, this code calls Kubeflow to submit pipelines and interacts with MLflow to log experiments.</div>
+    </div>
+
+    <!-- Arrow down to platform -->
+    <div class="internal-arrow">
+      <span class="iarrow">&#9660;</span>
+      <span class="iarrow-label" style="background:rgba(52,211,153,0.1); color:#34d399;">submits pipeline / logs experiments</span>
+      <span class="iarrow">&#9660;</span>
+    </div>
+
+    <!-- ===== OSS MLOps Platform ===== -->
+    <div class="platform">
+      <div class="platform-title">OSS MLOps Platform</div>
+
+      <div class="platform-flow">
+        <!-- Kubeflow -->
+        <div class="pcomp kubeflow clickable" onclick="toggle(this)">
+          <span class="info-badge">i</span>
+          <div class="pname">Kubeflow</div>
+          <div class="prole">Pipeline Orchestration</div>
+          <div class="pipeline-steps">
+            <div class="pstep">Load Data</div>
+            <div class="pedge"></div>
+            <div class="pstep">Train</div>
+            <div class="pedge"></div>
+            <div class="pstep">Evaluate</div>
+          </div>
+          <div class="tip" style="text-align:left;"><strong>Breaks your ML workflow into a chain of containerized steps</strong>: e.g. load data → train model → evaluate. Each step runs in its own container. You define the pipeline in Python, Kubeflow handles scheduling, dependencies, and logging. UI at <code>localhost:8080</code>.</div>
+        </div>
+
+        <!-- Arrow: store model -->
+        <div class="parrow parrow-store">
+          <div class="parrow-label">store model</div>
+          <div class="parrow-line">&rarr;</div>
+        </div>
+
+        <!-- MLflow -->
+        <div class="pcomp mlflow clickable" onclick="toggle(this)">
+          <span class="info-badge">i</span>
+          <div class="pname">MLflow</div>
+          <div class="prole">Model Tracking & Registry</div>
+          <div style="margin-top:8px; font-size:10px; opacity:0.55; line-height:1.5;">Experiments &middot; Versions &middot; Artifacts</div>
+          <div class="tip" style="text-align:left;"><strong>Records every experiment</strong> — hyperparameters, metrics, and trained model files. After Kubeflow's pipeline trains a model, it stores the result in MLflow. KServe later pulls models from here to deploy. UI at <code>localhost:5000</code>.</div>
+        </div>
+
+        <!-- Arrow: fetch model -->
+        <div class="parrow parrow-deploy">
+          <div class="parrow-label">fetch model</div>
+          <div class="parrow-line">&rarr;</div>
+        </div>
+
+        <!-- KServe -->
+        <div class="pcomp kserve clickable" onclick="toggle(this)">
+          <span class="info-badge">i</span>
+          <div class="pname">KServe</div>
+          <div class="prole">Model Serving</div>
+          <div style="margin-top:8px; font-size:10px; opacity:0.55; line-height:1.5;">Inference API &middot; Auto-scaling</div>
+          <div class="tip" style="text-align:left;"><strong>Takes a trained model from MLflow and exposes it as a REST API</strong>. Send data via HTTP, get predictions back. Runs on Kubernetes with auto-scaling — spins up more copies when traffic increases.</div>
+        </div>
+
+        <!-- Arrow to deployed -->
+        <div class="parrow parrow-deploy">
+          <div class="parrow-label">deploy</div>
+          <div class="parrow-line">&rarr;</div>
+        </div>
+
+        <!-- Deployed Model -->
+        <div class="deployed clickable" onclick="toggle(this)">
+          <span class="info-badge" style="top:5px;right:5px;">i</span>
+          <div class="deployed-icon">&#128640;</div>
+          <div>
+            <div class="deployed-text">Deployed Model</div>
+            <div class="deployed-sub">Live API endpoint</div>
+          </div>
+          <div class="tip"><strong>The final product</strong>: a live ML model as a web service. Any app can send data and get predictions — e.g. send an image, get "this is a cat."</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data flow summary -->
+    <div class="flow-bar">
+      <div class="flow-label">&#128260; End-to-End Flow</div>
+      <div class="flow-row">
+        <div class="fstep f-purple"><span class="fnum">1</span><span class="ftxt">Push code</span></div>
+        <span class="farr">&rarr;</span>
+        <div class="fstep f-yellow"><span class="fnum">2</span><span class="ftxt">Actions triggers</span></div>
+        <span class="farr">&rarr;</span>
+        <div class="fstep f-orange"><span class="fnum">3</span><span class="ftxt">Jupyter / Python runs</span></div>
+        <span class="farr">&rarr;</span>
+        <div class="fstep f-orange"><span class="fnum">4</span><span class="ftxt">Kubeflow pipeline</span></div>
+        <span class="farr">&rarr;</span>
+        <div class="fstep f-blue"><span class="fnum">5</span><span class="ftxt">MLflow stores model</span></div>
+        <span class="farr">&rarr;</span>
+        <div class="fstep f-pink"><span class="fnum">6</span><span class="ftxt">KServe deploys</span></div>
+      </div>
+    </div>
+
+    <!-- Tools -->
+    <div class="tools-area">
+      <div class="tools-lbl">Local Tools</div>
+      <div class="tools-row">
+        <span class="ttag" onclick="toggleTag(this)">
+          OSS MLOps CLI
+          <div class="tip">A <strong>command-line tool</strong> to install and manage the entire MLOps stack with one command.</div>
+        </span>
+        <span class="ttag" onclick="toggleTag(this)">
+          Jupyter Lab
+          <div class="tip">A <strong>browser-based IDE</strong> for notebooks, file editing, and terminal access. More powerful than classic Jupyter.</div>
+        </span>
+        <span class="ttag" onclick="toggleTag(this)">
+          GitHub Runner
+          <div class="tip">A <strong>self-hosted program on your machine</strong> that listens for GitHub Actions jobs and executes them locally — the bridge between cloud CI/CD and your local platform.</div>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <span class="legend-t">Legend</span>
+  <div class="legend-i"><div class="legend-d" style="background:#a78bfa;"></div> GitHub</div>
+  <div class="legend-i"><div class="legend-d" style="background:#fbbf24;"></div> CI/CD</div>
+  <div class="legend-i"><div class="legend-d" style="background:#fb923c;"></div> Kubeflow</div>
+  <div class="legend-i"><div class="legend-d" style="background:#60a5fa;"></div> MLflow</div>
+  <div class="legend-i"><div class="legend-d" style="background:#f472b6;"></div> KServe</div>
+  <div class="legend-i"><div class="legend-d" style="background:#818cf8;"></div> Kubernetes</div>
+  <div class="legend-i"><div class="legend-d" style="background:#34d399;"></div> Execution Layer</div>
+</div>
+
+<script>
+function toggle(el) {
+  const tip = el.querySelector('.tip');
+  if (!tip) return;
+  const isOpen = tip.classList.contains('show');
+  closeAll();
+  if (!isOpen) { tip.classList.add('show'); el.classList.add('active'); }
+}
+function toggleTag(el) {
+  const tip = el.querySelector('.tip');
+  if (!tip) return;
+  const isOpen = tip.classList.contains('show');
+  closeAll();
+  if (!isOpen) { tip.classList.add('show'); el.classList.add('active'); }
+}
+function closeAll() {
+  document.querySelectorAll('.tip.show').forEach(t => {
+    t.classList.remove('show');
+    const p = t.closest('.clickable,.layer,.ttag');
+    if (p) p.classList.remove('active');
+  });
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.clickable,.layer,.ttag')) closeAll();
+});
+</script>
+</body>
+</html>
