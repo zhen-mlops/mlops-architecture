@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Cloud MLOps Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e1a;
+    color: #e0e4f0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px;
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px; font-weight: 700; color: #7dd3fc;
+    text-transform: uppercase; letter-spacing: 3px;
+    text-align: center; margin-bottom: 6px;
+  }
+  .subtitle { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; }
+  .hint { text-align: center; color: #475569; font-size: 12px; margin-bottom: 32px; }
+  .hint span { background: rgba(125,211,252,0.1); border: 1px solid rgba(125,211,252,0.2); padding: 3px 10px; border-radius: 20px; color: #7dd3fc; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+
+  /* Top bar - Auto Scaling */
+  .top-bar {
+    max-width: 1500px; margin: 0 auto 20px;
+    padding: 12px 20px;
+    background: rgba(251,191,36,0.06);
+    border: 1px solid rgba(251,191,36,0.15);
+    border-radius: 10px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; position: relative; transition: transform 0.15s;
+  }
+  .top-bar:hover { transform: translateY(-1px); }
+  .top-bar-icon { font-size: 18px; }
+  .top-bar-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #fbbf24; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; }
+  .top-bar-sub { font-size: 11px; color: #94a3b8; margin-left: auto; }
+
+  /* Main 3-column layout */
+  .main-layout {
+    display: flex; gap: 16px;
+    max-width: 1500px; margin: 0 auto;
+    align-items: stretch;
+  }
+
+  /* Panels */
+  .panel { border-radius: 14px; padding: 20px; position: relative; }
+  .panel-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 2px;
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .prj-panel { flex: 0 0 220px; background: linear-gradient(165deg, #111827, #0f1629); border: 1px solid #1e293b; }
+  .prj-panel .panel-label { color: #a78bfa; }
+
+  .dc-panel { flex: 1; background: linear-gradient(165deg, #111827, #0d1320); border: 1px solid #1e293b; }
+  .dc-panel .panel-label { color: #fb923c; }
+
+  .csc-panel { flex: 1; background: linear-gradient(165deg, #111827, #0d1320); border: 1px solid #1e293b; }
+  .csc-panel .panel-label { color: #34d399; }
+
+  /* Arrow columns */
+  .arrow-col {
+    flex: 0 0 60px; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; gap: 14px;
+  }
+
+  /* Clickable */
+  .clickable { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+  .clickable:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+
+  .info-badge {
+    position: absolute; top: 6px; right: 6px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: rgba(255,255,255,0.35);
+    transition: all 0.15s; z-index: 2;
+  }
+  .clickable:hover .info-badge { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); }
+  .clickable.active .info-badge { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+
+  .tip {
+    display: none; margin-top: 8px; padding: 11px 13px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    font-size: 12.5px; line-height: 1.65; color: #cbd5e1;
+    animation: tipIn 0.2s ease-out;
+  }
+  .tip.show { display: block; }
+  .tip strong { color: #f1f5f9; }
+  .tip code { color: #7dd3fc; background: rgba(125,211,252,0.1); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  @keyframes tipIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+  /* Boxes */
+  .box {
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
+    font-size: 13px; font-weight: 600; position: relative;
+  }
+  .box-sub { font-size: 10px; font-weight: 400; opacity: 0.55; margin-top: 2px; }
+
+  .script-box { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+  .vpn-box { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); color: #7dd3fc; }
+  .vm-admin-box { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2); color: #fcd34d; }
+
+  /* Stack layers */
+  .stack { margin-bottom: 12px; }
+  .layer {
+    padding: 8px 12px; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; border-radius: 4px; transition: background 0.15s;
+  }
+  .layer:hover { background: rgba(255,255,255,0.03); }
+  .ldot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .l-hw { color: #64748b; } .l-hw .ldot { background: #64748b; }
+  .l-vm { color: #a1a1aa; } .l-vm .ldot { background: #a1a1aa; }
+  .l-k8s { color: #818cf8; } .l-k8s .ldot { background: #818cf8; }
+  .l-docker { color: #38bdf8; } .l-docker .ldot { background: #38bdf8; }
+  .l-click { font-size: 9px; opacity: 0.3; margin-left: auto; }
+
+  /* Service boxes */
+  .service-area {
+    border-radius: 10px; padding: 14px; margin-top: 10px;
+  }
+  .service-title {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;
+  }
+
+  .ml-workload-area {
+    background: rgba(251,146,60,0.06); border: 1px solid rgba(251,146,60,0.15);
+  }
+  .ml-workload-area .service-title { color: #fb923c; }
+
+  .mlops-service-area {
+    background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.15);
+  }
+  .mlops-service-area .service-title { color: #34d399; }
+
+  .svc-box {
+    border-radius: 8px; padding: 12px; text-align: center;
+    font-weight: 600; font-size: 13px; position: relative;
+  }
+  .svc-sub { font-size: 10px; font-weight: 400; opacity: 0.55; margin-top: 3px; }
+
+  .kubeflow-svc { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.25); color: #fb923c; }
+  .scaler-svc { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25); color: #34d399; }
+  .ml-train-svc { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.25); color: #fb923c; }
+
+  .svc-grid { display: flex; gap: 8px; }
+  .svc-grid > * { flex: 1; }
+
+  /* VPN tunnel */
+  .vpn-tunnel {
+    max-width: 1500px; margin: 16px auto 0;
+    padding: 14px 20px;
+    background: rgba(56,189,248,0.04);
+    border: 1px dashed rgba(56,189,248,0.2);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    cursor: pointer; position: relative; transition: transform 0.15s;
+  }
+  .vpn-tunnel:hover { transform: translateY(-1px); }
+  .vpn-icon { font-size: 16px; }
+  .vpn-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #38bdf8; font-weight: 600; letter-spacing: 1px; }
+  .vpn-dots { color: #1e3a5f; font-family: 'JetBrains Mono', monospace; font-size: 14px; letter-spacing: 3px; }
+  .vpn-end { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 4px; }
+  .vpn-client { background: rgba(251,146,60,0.1); color: #fb923c; }
+  .vpn-server { background: rgba(52,211,153,0.1); color: #34d399; }
+
+  /* Arrows between panels */
+  .conn { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .conn-arr { font-size: 18px; line-height: 1; color: #334155; }
+  .conn-lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 2px 6px; border-radius: 3px; white-space: nowrap;
+    text-align: center;
+  }
+  .c-setup .conn-lbl { background: rgba(167,139,250,0.1); color: #a78bfa; }
+  .c-setup .conn-arr { color: #a78bfa; }
+  .c-vpn .conn-lbl { background: rgba(56,189,248,0.1); color: #38bdf8; }
+  .c-vpn .conn-arr { color: #38bdf8; }
+  .c-workload .conn-lbl { background: rgba(251,146,60,0.1); color: #fb923c; }
+  .c-workload .conn-arr { color: #fb923c; }
+
+  /* Data flow */
+  .flow-bar {
+    max-width: 1500px; margin: 16px auto 0;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.02); border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .flow-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  .flow-row { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; }
+  .fstep { display: flex; align-items: center; gap: 6px; }
+  .fnum {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+  }
+  .ftxt { font-size: 11px; color: #cbd5e1; white-space: nowrap; }
+  .farr { color: #334155; font-size: 14px; margin: 0 6px; }
+  .f-purple .fnum { background: rgba(167,139,250,0.2); color: #a78bfa; }
+  .f-blue .fnum { background: rgba(56,189,248,0.2); color: #38bdf8; }
+  .f-orange .fnum { background: rgba(251,146,60,0.2); color: #fb923c; }
+  .f-green .fnum { background: rgba(52,211,153,0.2); color: #34d399; }
+  .f-yellow .fnum { background: rgba(251,191,36,0.2); color: #fbbf24; }
+
+  /* Comparison note */
+  .compare-note {
+    max-width: 1500px; margin: 16px auto 0;
+    padding: 14px 18px;
+    background: rgba(167,139,250,0.04);
+    border: 1px solid rgba(167,139,250,0.12);
+    border-radius: 10px;
+    font-size: 12px; color: #94a3b8; line-height: 1.6;
+  }
+  .compare-note strong { color: #c4b5fd; }
+
+  /* Legend */
+  .legend {
+    max-width: 1500px; margin: 16px auto 0; padding: 14px 20px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
+  }
+  .legend-t { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 2px; }
+  .legend-i { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #64748b; }
+  .legend-d { width: 8px; height: 8px; border-radius: 3px; }
+
+  /* Animations */
+  @keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .panel { animation: fadeInUp 0.5s ease-out both; }
+  .prj-panel { animation-delay: 0.1s; }
+  .dc-panel { animation-delay: 0.25s; }
+  .csc-panel { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,100% { opacity:0.4; } 50% { opacity:0.9; } }
+  .conn-arr { animation: pulse 2.5s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<h1>Multi-Cloud MLOps Architecture</h1>
+<p class="subtitle">Extended Work Stream &middot; Distributed Across Sites</p>
+<p class="hint"><span>Click any component</span> to see what it does</p>
+
+<!-- Auto Scaling Banner -->
+<div class="top-bar clickable" onclick="toggle(this)">
+  <span class="info-badge">i</span>
+  <div class="top-bar-icon">&#9889;</div>
+  <div class="top-bar-text">Auto Scaling</div>
+  <div class="top-bar-sub">VM shutdown / spin up via Image</div>
+  <div class="tip">The system can <strong>automatically start or stop VMs based on demand</strong>. When ML training jobs come in, new VMs spin up from a pre-built image. When jobs finish, VMs shut down to save resources. The Scaler service at CSC controls this process.</div>
+</div>
+
+<!-- Main 3-column layout -->
+<div class="main-layout">
+
+  <!-- ===== PRJ ===== -->
+  <div class="panel prj-panel">
+    <div class="panel-label">&#128736; PRJ &middot; Admin / Config</div>
+
+    <div class="box script-box clickable" onclick="toggle(this)">
+      <span class="info-badge">i</span>
+      Setup Scripts
+      <div class="box-sub">Initialize clusters</div>
+      <div class="tip"><strong>Shell scripts that set up the entire infrastructure</strong> on both DC and CSC sites. They install KiND, create Kubernetes clusters, deploy services, and configure networking. You run these once to bootstrap everything.</div>
+    </div>
+
+    <div class="box vpn-box clickable" onclick="toggle(this)">
+      <span class="info-badge">i</span>
+      VPN Secrets
+      <div class="box-sub">Encryption keys &amp; certificates</div>
+      <div class="tip"><strong>Cryptographic keys and certificates</strong> that let DC and CSC establish a secure encrypted tunnel. Without these, the two sites cannot communicate safely over the public internet.</div>
+    </div>
+
+    <div class="box vpn-box clickable" onclick="toggle(this)">
+      <span class="info-badge">i</span>
+      VPN Setup
+      <div class="box-sub">Connection configuration</div>
+      <div class="tip"><strong>Configuration files that define the VPN tunnel</strong>: which IP addresses to use, which ports, which encryption protocol. Tells DC to act as VPN client and CSC to act as VPN server.</div>
+    </div>
+
+    <div class="box vm-admin-box clickable" onclick="toggle(this)">
+      <span class="info-badge">i</span>
+      VM Admin Tools
+      <div class="box-sub">HW VIRT management</div>
+      <div class="tip"><strong>Tools for managing virtual machines</strong> across sites. Handles VM creation, deletion, snapshotting, and resource allocation. Works with the hardware virtualization layer to spin up machines as needed.</div>
+    </div>
+  </div>
+
+  <!-- Arrow PRJ → DC -->
+  <div class="arrow-col">
+    <div class="conn c-setup">
+      <div class="conn-lbl">setup<br>scripts</div>
+      <div class="conn-arr">&rarr;</div>
+    </div>
+    <div class="conn c-vpn">
+      <div class="conn-lbl">vpn<br>config</div>
+      <div class="conn-arr">&rarr;</div>
+    </div>
+  </div>
+
+  <!-- ===== DC ===== -->
+  <div class="panel dc-panel">
+    <div class="panel-label">&#127979; DC &middot; Data Center</div>
+
+    <div class="stack">
+      <div class="layer l-hw" onclick="toggle(this)">
+        <span class="ldot"></span> Hardware
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Physical servers in the data center</strong> with CPUs, GPUs, RAM, and storage optimized for ML training workloads. This is where the heavy computation happens.</div>
+      </div>
+      <div class="layer l-vm" onclick="toggle(this)">
+        <span class="ldot"></span> VM
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Virtual machines running on the DC hardware</strong>. Each VM is an isolated environment that can be started, stopped, or cloned from an image. Auto-scaling creates/destroys these on demand.</div>
+      </div>
+      <div class="layer l-k8s" onclick="toggle(this)">
+        <span class="ldot"></span> K8S (Kubernetes)
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Kubernetes cluster running inside the VM</strong>, created by KiND. Manages and schedules containers for ML training. Communicates with the CSC K8S cluster via VPN.</div>
+      </div>
+      <div class="layer l-docker" onclick="toggle(this)">
+        <span class="ldot"></span> Docker
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Container runtime</strong> that runs the actual ML training containers. Each training job runs in its own isolated Docker container inside Kubernetes.</div>
+      </div>
+    </div>
+
+    <div class="service-area ml-workload-area">
+      <div class="service-title">ML Training Workloads</div>
+      <div class="svc-box ml-train-svc clickable" onclick="toggle(this)">
+        <span class="info-badge">i</span>
+        &#129504; ML Training Jobs
+        <div class="svc-sub">Model training runs here</div>
+        <div class="tip"><strong>The actual compute-heavy ML training happens here.</strong> When Kubeflow at CSC orchestrates a pipeline, the training steps are sent to DC where GPUs/CPUs do the work. Results are sent back to CSC for tracking and storage.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow DC ↔ CSC -->
+  <div class="arrow-col">
+    <div class="conn c-workload">
+      <div class="conn-lbl">ml<br>workload</div>
+      <div class="conn-arr">&larr;</div>
+    </div>
+    <div class="conn c-vpn">
+      <div class="conn-lbl">k8s<br>comms</div>
+      <div class="conn-arr">&harr;</div>
+    </div>
+    <div class="conn c-setup">
+      <div class="conn-lbl">setup<br>scripts</div>
+      <div class="conn-arr" style="animation: none; opacity: 0.3;">&#8599;</div>
+    </div>
+  </div>
+
+  <!-- ===== CSC ===== -->
+  <div class="panel csc-panel">
+    <div class="panel-label">&#127963; CSC &middot; IT Center for Science</div>
+
+    <div class="stack">
+      <div class="layer l-hw" onclick="toggle(this)">
+        <span class="ldot"></span> Hardware
+        <span class="l-click">click</span>
+        <div class="tip"><strong>CSC's server hardware in Finland</strong>. Hosts the MLOps control plane. Doesn't need heavy GPUs since it's managing pipelines, not running training.</div>
+      </div>
+      <div class="layer l-vm" onclick="toggle(this)">
+        <span class="ldot"></span> VM (OpenStack)
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Virtual machines managed by OpenStack</strong>. OpenStack is a cloud platform (like a private AWS) that CSC uses to create and manage VMs, networks, and storage on their hardware.</div>
+      </div>
+      <div class="layer l-k8s" onclick="toggle(this)">
+        <span class="ldot"></span> K8S via KiND
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Kubernetes cluster created by KiND</strong> inside CSC's VM. Runs the MLOps services (Kubeflow, Scaler). Connects to DC's K8S cluster via VPN to dispatch training jobs.</div>
+      </div>
+      <div class="layer l-docker" onclick="toggle(this)">
+        <span class="ldot"></span> Docker
+        <span class="l-click">click</span>
+        <div class="tip"><strong>Container runtime</strong> running Kubeflow, the Scaler service, and other MLOps tools as containers inside Kubernetes.</div>
+      </div>
+    </div>
+
+    <div class="service-area mlops-service-area">
+      <div class="service-title">OSS MLOps Services</div>
+      <div class="svc-grid">
+        <div class="svc-box kubeflow-svc clickable" onclick="toggle(this)">
+          <span class="info-badge">i</span>
+          Kubeflow
+          <div class="svc-sub">Pipeline orchestration</div>
+          <div class="tip"><strong>Same Kubeflow from the single-machine setup</strong>, but now it sends training jobs to the DC data center instead of running them locally. It orchestrates the pipeline steps and tracks which jobs run where.</div>
+        </div>
+        <div class="svc-box scaler-svc clickable" onclick="toggle(this)">
+          <span class="info-badge">i</span>
+          Scaler Service
+          <div class="svc-sub">Auto-scaling controller</div>
+          <div class="tip"><strong>Watches training demand and automatically scales DC resources.</strong> When many jobs queue up, it spins up new VMs at DC from a pre-built image. When jobs finish, it shuts VMs down to save cost. Controls the auto-scaling banner at the top.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VPN Tunnel Bar -->
+<div class="vpn-tunnel clickable" onclick="toggle(this)">
+  <span class="info-badge" style="top:6px;right:6px;">i</span>
+  <span class="vpn-end vpn-client">DC (client)</span>
+  <span class="vpn-dots">&middot;&middot;&middot;&middot;&middot;&middot;</span>
+  <span class="vpn-icon">&#128272;</span>
+  <span class="vpn-label">VPN Tunnel</span>
+  <span class="vpn-icon">&#128272;</span>
+  <span class="vpn-dots">&middot;&middot;&middot;&middot;&middot;&middot;</span>
+  <span class="vpn-end vpn-server">CSC (server)</span>
+  <div class="tip"><strong>An encrypted network tunnel connecting DC and CSC over the internet.</strong> DC acts as the VPN client and CSC as the server. All Kubernetes cross-cluster communication and ML workload dispatching flows through this secure channel. Without it, the two sites cannot talk to each other.</div>
+</div>
+
+<!-- Data Flow -->
+<div class="flow-bar">
+  <div class="flow-label">&#128260; End-to-End Flow</div>
+  <div class="flow-row">
+    <div class="fstep f-purple"><span class="fnum">1</span><span class="ftxt">PRJ runs setup scripts</span></div>
+    <span class="farr">&rarr;</span>
+    <div class="fstep f-blue"><span class="fnum">2</span><span class="ftxt">VPN tunnel established</span></div>
+    <span class="farr">&rarr;</span>
+    <div class="fstep f-green"><span class="fnum">3</span><span class="ftxt">Kubeflow orchestrates pipeline</span></div>
+    <span class="farr">&rarr;</span>
+    <div class="fstep f-orange"><span class="fnum">4</span><span class="ftxt">Training jobs sent to DC</span></div>
+    <span class="farr">&rarr;</span>
+    <div class="fstep f-green"><span class="fnum">5</span><span class="ftxt">Results return to CSC</span></div>
+    <span class="farr">&rarr;</span>
+    <div class="fstep f-yellow"><span class="fnum">6</span><span class="ftxt">Scaler adjusts DC VMs</span></div>
+  </div>
+</div>
+
+<!-- Comparison Note -->
+<div class="compare-note">
+  <strong>How does this relate to the single-machine setup?</strong> In the single-machine architecture, everything (Kubeflow, MLflow, training) runs on one computer. In this multi-cloud setup, the same components are <strong>split across sites</strong>: CSC handles orchestration and control, DC handles compute. The VPN connects them. Same tools, different deployment topology.
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <span class="legend-t">Legend</span>
+  <div class="legend-i"><div class="legend-d" style="background:#a78bfa;"></div> PRJ / Admin</div>
+  <div class="legend-i"><div class="legend-d" style="background:#fb923c;"></div> DC / Training</div>
+  <div class="legend-i"><div class="legend-d" style="background:#34d399;"></div> CSC / MLOps Control</div>
+  <div class="legend-i"><div class="legend-d" style="background:#38bdf8;"></div> VPN / Network</div>
+  <div class="legend-i"><div class="legend-d" style="background:#fbbf24;"></div> Auto Scaling</div>
+  <div class="legend-i"><div class="legend-d" style="background:#818cf8;"></div> Kubernetes</div>
+</div>
+
+<script>
+function toggle(el) {
+  const tip = el.querySelector('.tip');
+  if (!tip) return;
+  const isOpen = tip.classList.contains('show');
+  closeAll();
+  if (!isOpen) { tip.classList.add('show'); el.classList.add('active'); }
+}
+function closeAll() {
+  document.querySelectorAll('.tip.show').forEach(t => {
+    t.classList.remove('show');
+    const p = t.closest('.clickable,.layer,.top-bar,.vpn-tunnel');
+    if (p) p.classList.remove('active');
+  });
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.clickable,.layer,.top-bar,.vpn-tunnel')) closeAll();
+});
+</script>
+</body>
+</html>
